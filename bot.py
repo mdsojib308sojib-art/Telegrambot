@@ -47,7 +47,7 @@ VIDEO_BOT_TOKEN = os.environ["VIDEO_BOT_TOKEN"]
 VIDEO_BOT_USERNAME = os.getenv("VIDEO_BOT_USERNAME", "Viral_video99_bot").lstrip("@")
 OWNER_ID = int(os.environ["OWNER_ID"])
 STORAGE_CHANNEL_ID = int(os.environ["STORAGE_CHANNEL_ID"])
-DEFAULT_MINI_APP_URL = (os.getenv("MINI_APP_URL") or os.getenv("RENDER_EXTERNAL_URL") or "").strip()
+DEFAULT_MINI_APP_URL = (os.getenv("MINI_APP_URL") or os.getenv("RAILWAY_PUBLIC_DOMAIN") or os.getenv("RENDER_EXTERNAL_URL") or "").strip()
 DEFAULT_MENU_BUTTON_TEXT = os.getenv("MENU_BUTTON_TEXT", "🎬 Video open").strip() or "🎬 Video open"
 POLL_SECONDS = int(os.getenv("BROADCAST_POLL_SECONDS", "15"))
 MENU_SYNC_SECONDS = int(os.getenv("MENU_SYNC_SECONDS", "60"))
@@ -470,7 +470,7 @@ async def deliver_video(message: Message, code: str):
         minutes = int(settings.get("auto_delete_minutes") or 20)
         notice = await message.answer(f"✅ ভিডিও পাঠানো হয়েছে।\n⏳ {minutes} মিনিট পরে ভিডিওটি অটোমেটিক ডিলিট হবে।")
         delete_at = utcnow_sql() + timedelta(minutes=max(1, minutes))
-        # Durable queue: survives Render restart/sleep and is processed again on startup.
+        # Durable queue: survives server restart/sleep and is processed again on startup.
         await db_execute(
             "INSERT INTO delete_queue(chat_id,message_id,delete_at,status,created_at) VALUES(%s,%s,%s,'pending',%s)",
             (message.chat.id, sent.message_id, delete_at, utcnow_sql()),
