@@ -552,7 +552,7 @@ async def deliver_video(message: Message, code: str):
 
 
 async def deliver_video_from_video_bot(message: Message, code: str, user_id: int | None = None):
-    uid = int(user_id or uid)
+    uid = int(user_id or message.from_user.id)
     settings = await get_settings()
     rec = await lookup_video(code)
     if not rec:
