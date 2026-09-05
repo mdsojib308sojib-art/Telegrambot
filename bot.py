@@ -134,7 +134,9 @@ async def init_db():
                 "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS channel_package_button_text TEXT DEFAULT 'ভিডিও দেখুন'",
                 "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS mini_start_button_enabled BOOLEAN DEFAULT TRUE",
                 "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS mini_start_button_text TEXT DEFAULT '🚀 Mini Bot Start'",
-                "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS mini_start_text TEXT DEFAULT '👋 স্বাগতম! নতুন ভিডিও দেখতে Mini App খুলুন।'"
+                "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS mini_start_text TEXT DEFAULT '👋 স্বাগতম! নতুন ভিডিও দেখতে Mini App খুলুন।'",
+                "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS loading_text TEXT DEFAULT 'VidUnlock Loading...'",
+                "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS loading_logo TEXT"
             ):
                 await conn.execute(ddl)
     await refresh_admin_cache()
@@ -742,13 +744,11 @@ async def mini_bot_start_handler(message: Message):
     elif payload.startswith("welcome"):
         welcome = settings.get("join_welcome_text") or welcome
     kb = await mini_webapp_keyboard(settings)
-    # V21.4: Dedicated Mini Bot start-link flow used by Video/Notification package cards.
-    # The message is editable from Admin Panel/API and intentionally bypasses the tutorial card.
+    # V23: Every Mini Bot /start must show the Tutorial card, including
+    # package deep-links such as ?start=package_start.
     if payload.startswith("package_start"):
-        start_text = (settings.get("mini_start_text") or "👋 স্বাগতম! নতুন ভিডিও দেখতে Mini App খুলুন।").strip()
-        await message.answer(start_text, reply_markup=kb)
-        return
-    # V21.1: Every normal Mini Bot /start refreshes the Tutorial card.
+        welcome = (settings.get("mini_start_text") or welcome).strip()
+    # Every Mini Bot /start refreshes the Tutorial card.
     sent = await send_start_video(mini_bot, message, settings, "mini", reply_markup=kb, fallback_caption=welcome)
     if sent:
         return
@@ -2295,7 +2295,8 @@ async def api_admin_settings_save(request):
         "welcome_video_button_text", "welcome_video_button_url", "welcome_video_button_enabled",
         "welcome_start_button_text", "welcome_start_button_url", "welcome_start_button_enabled",
         "welcome_rejoin_button_text", "welcome_rejoin_button_url", "welcome_rejoin_button_enabled",
-        "mini_start_button_enabled", "mini_start_button_text", "mini_start_text"
+        "mini_start_button_enabled", "mini_start_button_text", "mini_start_text",
+        "loading_text", "loading_logo"
     ]
     bool_fields = {"show_online", "protect_content", "maintenance_mode", "tutorial_enabled", "comments_enabled", "reactions_enabled", "favorites_enabled", "profile_stats_enabled", "adsgram_enabled", "monetag_enabled", "welcome_manager_enabled", "join_request_welcome_enabled", "direct_join_welcome_enabled", "leave_inbox_enabled", "auto_approve_join_requests", "welcome_video_button_enabled", "welcome_start_button_enabled", "welcome_rejoin_button_enabled", "mini_start_button_enabled"}
 
