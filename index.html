@@ -672,7 +672,7 @@ body{background:radial-gradient(900px 500px at 10% -5%,rgba(124,77,255,.24),tran
         <div class="thumb-prev" id="av-thumb-prev"><span>Preview</span></div>
       </div>
       <div class="setting-grid" style="margin-bottom:12px">
-        <div class="form-group"><label>Required Ads</label><input type="number" id="av-required-ads" min="0" max="10" value="1"></div>
+        <div class="form-group"><label>🎯 Manual Required Ads (এই ভিডিও)</label><input type="number" id="av-required-ads" min="0" max="10" value="1"><small style="display:block;margin-top:5px;color:var(--muted)">0 = কোনো Ad নয় · 1–10 = এই ভিডিওর জন্য যতটি Ad লাগবে। অন্য ভিডিওতে প্রভাব ফেলবে না।</small></div>
         <div class="form-group"><label><input type="checkbox" id="av-broadcast" checked> Broadcast</label></div>
         <div class="form-group"><label><input type="checkbox" id="av-featured"> Featured</label></div>
         <div class="form-group"><label><input type="checkbox" id="av-trending" checked> Trending</label></div>
@@ -876,7 +876,7 @@ Verification সফল হলে ভিডিও যাবে। <b>এই Chann
         <div class="form-group"><label>AdsGram Required Ads</label><input id="set-required-ads-default" type="number" min="0" max="10" value="1"></div>
         <div class="form-group"><label>AdsGram Button Text</label><input id="set-ad-button-text" value="📢 AdsGram Ad দেখুন"></div>
         <div class="form-group full"><label>Monetag Zone ID</label><input id="set-monetag-zone-id" value="11404425" placeholder="11404425"></div>
-        <div class="form-group"><label>Monetag Required Ads</label><input id="set-monetag-required-default" type="number" min="0" max="10" value="1"></div>
+        <div class="form-group"><label>Monetag Required Ads (Legacy)</label><input id="set-monetag-required-default" type="number" min="0" max="10" value="1" disabled><small style="display:block;margin-top:5px;color:var(--muted)">V24: একই Manual Required Ads value এই ভিডিওর monetization flow-এ ব্যবহার হবে।</small></div>
         <div class="form-group"><label>Monetag Button Text</label><input id="set-monetag-button-text" value="💰 Monetag Ad দেখুন"></div>
         <div class="form-group" style="display:none"><label>Monetag Wait (seconds)</label><input id="set-monetag-wait-seconds" type="number" value="0"></div>
         <div class="form-group"><label>Unlock Button Text</label><input id="set-ad-unlock-text" value="🔓 ভিডিও আনলক করুন"></div>
@@ -1778,7 +1778,7 @@ async function saveVideo() {
   const title=(document.getElementById('av-title').value||'').trim(),catId=document.getElementById('av-cat').value;
   let videoCode=(document.getElementById('av-video-code').value||'').trim(),deepLink=(document.getElementById('av-deep-link').value||'').trim();
   const shortUrl=(document.getElementById('av-short-link').value||'').trim(), broadcastEnabled=!!document.getElementById('av-broadcast').checked;
-  const requiredAds=Math.max(0,Math.min(10,parseInt(document.getElementById('av-required-ads').value||'1')));
+  const rawRequiredAds=parseInt(document.getElementById('av-required-ads').value,10); const requiredAds=Math.max(0,Math.min(10,Number.isFinite(rawRequiredAds)?rawRequiredAds:0));
   const thumbPrev=document.getElementById('av-thumb-prev'), thumbBase64=thumbPrev?thumbPrev._data:'';
   if(!title)return showToast('ভিডিওর শিরোনাম দিন'); if(!videoCode&&deepLink){const m=deepLink.match(/[?&]start=(video_[A-Za-z0-9_-]+)/);if(m)videoCode=m[1];} if(!videoCode)return showToast('video_xxx code দিন');
   const botName=window.RUNTIME_BOT_USERNAME||BOT_USERNAME;if(!deepLink)deepLink=`https://t.me/${botName}?start=${videoCode}`;
