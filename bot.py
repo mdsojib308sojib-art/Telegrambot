@@ -1736,8 +1736,10 @@ async def api_unlock_url(request):
         raise web.HTTPNotFound(text="Package not found")
     await reset_expired_video_access(int(u["id"]), row.get("video_code"), settings)
     mode = str(settings.get("monetization_mode") or "both").lower()
-    ads_req = int(row.get("required_ads") if row.get("required_ads") is not None else (settings.get("required_ads_default") or 1))
-    mon_req = int(settings.get("monetag_required_default") or 1)
+    # V24: Manual per-video ad count. Global ad-count settings never override a video's value.
+    manual_req = max(0, min(10, int(row.get("required_ads") or 0)))
+    ads_req = manual_req
+    mon_req = manual_req
     ads_done = int((await db_fetchone("SELECT COUNT(*) c FROM ad_completions WHERE user_id=%s AND video_id=%s AND provider='adsgram'", (int(u["id"]), vid)))["c"] or 0)
     mon_done = int((await db_fetchone("SELECT COUNT(*) c FROM ad_completions WHERE user_id=%s AND video_id=%s AND provider='monetag'", (int(u["id"]), vid)))["c"] or 0)
     if mode in ("adsgram","both") and settings.get("adsgram_enabled", True) and ads_done < ads_req:
@@ -1770,8 +1772,10 @@ async def api_ad_status(request):
     if not row: raise web.HTTPNotFound(text="Package not found")
     await reset_expired_video_access(int(u["id"]), row.get("video_code"), settings)
     mode=str(settings.get("monetization_mode") or "both").lower()
-    ads_req=int(row.get("required_ads") if row.get("required_ads") is not None else (settings.get("required_ads_default") or 1))
-    mon_req=int(settings.get("monetag_required_default") or 1)
+    # V24: Manual per-video ad count.
+    manual_req=max(0,min(10,int(row.get("required_ads") or 0)))
+    ads_req=manual_req
+    mon_req=manual_req
     ads_done=int((await db_fetchone("SELECT COUNT(*) c FROM ad_completions WHERE user_id=%s AND video_id=%s AND provider='adsgram'",(int(u['id']),vid)))["c"] or 0)
     mon_done=int((await db_fetchone("SELECT COUNT(*) c FROM ad_completions WHERE user_id=%s AND video_id=%s AND provider='monetag'",(int(u['id']),vid)))["c"] or 0)
     ads_enabled=bool(settings.get("adsgram_enabled",True)) and mode in ("adsgram","both") and ads_req>0
@@ -2204,10 +2208,11 @@ async def api_admin_video_save(request):
     share_code = str(d.get("share_code") or (existing or {}).get("share_code") or "").strip() or f"v{int(time.time() * 1000)}"
     share_link = f"https://t.me/{MINI_BOT_USERNAME}?startapp={share_code}"
     settings = await get_settings()
+    # V24: Required Ads is explicitly saved per video/package.
     try:
-        required_ads = max(0, min(10, int(d.get("required_ads", settings.get("required_ads_default", 1)) or 0)))
+        required_ads = max(0, min(10, int(d.get("required_ads", 0) or 0)))
     except Exception:
-        required_ads = int(settings.get("required_ads_default", 1) or 1)
+        required_ads = 0
     thumb = d.get("thumb")
     if (thumb is None or thumb == "") and existing:
         thumb = existing.get("thumb") or ""
