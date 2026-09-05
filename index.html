@@ -613,6 +613,7 @@ body{background:radial-gradient(900px 500px at 10% -5%,rgba(124,77,255,.24),tran
     <button class="tab" onclick="switchAdminSubView('v20tasks', this)">🎯 Task Settings</button>
     <button class="tab" onclick="switchAdminSubView('v20notify', this)">🔔 Notification Settings</button>
     <button class="tab" onclick="switchAdminSubView('v20withdraw', this)">💸 Withdraw Requests</button>
+    <button class="tab" onclick="switchAdminSubView('loading', this)">🖼 Loading Screen</button>
     <button class="tab" onclick="switchAdminSubView('settings', this)" data-i18n="settings">সেটিংস</button>
   </div>
   
@@ -826,31 +827,49 @@ Verification সফল হলে ভিডিও যাবে। <b>এই Chann
 </div>
 <button class="btn btn-p" onclick="saveV20Texts()">Save Notification Texts</button></div></div>
   <div id="admin-v20withdraw" class="admin-subview hidden"><div class="admin-card"><h4>💸 Withdraw Requests</h4><div id="v20-withdraw-list" class="v20-list"></div></div></div>
-  <div id="admin-settings" class="admin-subview hidden">
+  <div id="admin-loading" class="admin-subview hidden">
+  <div class="admin-card">
+    <h4>🖼 Mini App Loading Screen</h4>
+    <p style="font-size:11px;color:var(--muted);line-height:1.55;margin:6px 0 14px">
+      Mini App খোলার সময় যে Logo এবং Loading Text দেখা যায়, সেগুলো শুধু এই আলাদা Settings থেকে নিয়ন্ত্রণ হবে।
+    </p>
+
+    <div class="form-group full">
+      <label>Loading Text</label>
+      <input id="set-loading-text" placeholder="VidUnlock Loading...">
+    </div>
+
+    <div class="form-group full">
+      <label>Loading Logo</label>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="width:88px;height:88px;border-radius:18px;background:var(--surface-2);display:grid;place-items:center;overflow:hidden;border:1px solid var(--border)">
+          <img id="set-loading-logo-preview" alt="Loading Logo Preview" style="width:100%;height:100%;object-fit:contain;display:none">
+          <span id="set-loading-logo-empty" style="font-size:10px;color:var(--muted)">No Logo</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <label class="btn btn-g" style="width:auto;padding:10px 13px">📤 Logo Upload
+            <input id="set-loading-logo-file" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="handleLoadingLogoUpload(this)">
+          </label>
+          <button type="button" class="btn btn-d" style="width:auto;padding:10px 13px" onclick="removeLoadingLogo()">🗑 Remove Logo</button>
+        </div>
+      </div>
+      <input id="set-loading-logo-data" type="hidden">
+      <small style="display:block;margin-top:8px;color:var(--muted)">PNG/JPG/WEBP ব্যবহার করুন। Save করার আগে Preview দেখা যাবে।</small>
+    </div>
+
+    <div style="margin-top:14px">
+      <button class="btn btn-p" onclick="saveLoadingScreenSettings()">💾 Save Loading Screen</button>
+    </div>
+  </div>
+</div>
+
+<div id="admin-settings" class="admin-subview hidden">
     <div class="admin-card">
       <h4>⚙️ Bot & Mini App Control</h4>
       <div class="setting-grid">
       <div class="form-group full"><label>Brand / App Name</label><input id="set-brand" placeholder="Bangladesh Viral Video"></div>
       <div class="form-group full"><label>Header Subtitle</label><input id="set-brand-subtitle" placeholder="PREMIUM VIDEO HUB"></div>
-      <div class="admin-card" style="margin:12px 0;background:rgba(124,77,255,.07);border:1px solid rgba(124,77,255,.22)">
-        <h4 style="margin-bottom:10px">🖼 Mini App Loading Screen</h4>
-        <div class="form-group full"><label>Loading Text</label><input id="set-loading-text" placeholder="VidUnlock Loading..."></div>
-        <div class="form-group full">
-          <label>Loading Logo</label>
-          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <div style="width:70px;height:70px;border-radius:16px;background:var(--surface-2);display:grid;place-items:center;overflow:hidden;border:1px solid var(--border)">
-              <img id="set-loading-logo-preview" alt="Logo Preview" style="width:100%;height:100%;object-fit:contain;display:none">
-              <span id="set-loading-logo-empty" style="font-size:10px;color:var(--muted)">No Logo</span>
-            </div>
-            <label class="btn btn-g" style="width:auto;padding:9px 12px">📤 Logo Upload
-              <input id="set-loading-logo-file" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="handleLoadingLogoUpload(this)">
-            </label>
-            <button type="button" class="btn btn-d" style="width:auto;padding:9px 12px" onclick="removeLoadingLogo()">🗑 Remove</button>
-          </div>
-          <input id="set-loading-logo-data" type="hidden">
-          <small style="display:block;margin-top:7px;color:var(--muted)">Logo automatically 256×256-এর মধ্যে resize হয়ে save হবে।</small>
-        </div>
-      </div>
+
       <div class="form-group full"><label>Home Hero Text</label><input id="set-hero-text" placeholder="নতুন ও ট্রেন্ডিং ভিডিও দেখুন"></div>
       <div class="form-group"><label>Home Menu Name</label><input id="set-nav-home" placeholder="হোম"></div>
       <div class="form-group"><label>Favorite Menu Name</label><input id="set-nav-fav" placeholder="পছন্দ"></div>
@@ -1935,10 +1954,33 @@ function handleLoadingLogoUpload(input){
   };
   reader.readAsDataURL(file);
 }
+async function saveLoadingScreenSettings(){
+  const loading_text=(document.getElementById('set-loading-text')?.value||'VidUnlock Loading...').trim();
+  const loading_logo=document.getElementById('set-loading-logo-data')?.value||'';
+  try{
+    const r=await apiFetch('/api/admin/loading-screen',{
+      method:'POST',
+      body:JSON.stringify({loading_text,loading_logo})
+    });
+    const liveText=document.getElementById('loader-text');
+    const liveImg=document.getElementById('loader-logo-img');
+    const liveFallback=document.getElementById('loader-logo-fallback');
+    if(liveText)liveText.textContent=r.loading_text||'VidUnlock Loading...';
+    if(liveImg&&liveFallback){
+      if(r.loading_logo){liveImg.src=r.loading_logo;liveImg.style.display='block';liveFallback.style.display='none';}
+      else{liveImg.removeAttribute('src');liveImg.style.display='none';liveFallback.style.display='grid';}
+    }
+    try{localStorage.setItem('vidunlock_loader_settings',JSON.stringify({loading_text:r.loading_text||'VidUnlock Loading...',loading_logo:r.loading_logo||''}));}catch(e){}
+    updateLoadingLogoPreview(r.loading_logo||'');
+    showToast('Loading Screen Save হয়েছে ✅','success');
+  }catch(e){
+    showToast('Save হয়নি: '+(e.message||'API error'),'danger');
+  }
+}
 async function saveAdminSettings() {
   if(settingsSaveInFlight) return;
   const gv=id=>document.getElementById(id)?.value?.trim();
-  const data={brand_name:gv('set-brand')||'Bangladesh Viral Video',brand_subtitle:gv('set-brand-subtitle')||'PREMIUM VIDEO HUB',loading_text:gv('set-loading-text')||'VidUnlock Loading...',loading_logo:gv('set-loading-logo-data')||null,hero_text:gv('set-hero-text')||'ফোনের গ্যালারির মতো সহজে ভিডিও বাছাই করুন, Ad/Task সম্পন্ন করে নিরাপদে আনলক করুন।',nav_home:gv('set-nav-home')||'হোম',nav_fav:gv('set-nav-fav')||'পছন্দ',nav_unlock:gv('set-nav-unlock')||'আনলক',nav_viral:gv('set-nav-viral')||'ভাইরাল লিংক',nav_profile:gv('set-nav-profile')||'প্রোফাইল',online_label:gv('set-online-label')||'Online',show_online:document.getElementById('set-show-online')?.checked!==false,web_app_url:gv('set-webapp-url')||null,bot_menu_button_text:gv('set-menu-button-text')||'🎬 Video open',welcome_text:gv('set-welcome-text')||'👋 স্বাগতম! নিচের বাটন থেকে ভিডিও অ্যাপ খুলুন।',watch_button_text:gv('set-watch-text')||'Watch Video',broadcast_button_text:gv('set-broadcast-text')||'▶ ভিডিও ওপেন করুন',auto_delete_minutes:parseInt(gv('set-delete-min'))||20,protect_content:document.getElementById('set-protect').checked,maintenance_mode:document.getElementById('set-maintenance').checked,tutorial_enabled:document.getElementById('set-tutorial-enabled')?.checked!==false,tutorial_video_code:gv('set-tutorial-code')||null,tutorial_caption:gv('set-tutorial-caption')||'🎓 ভিডিও কীভাবে দেখবেন\n\nএই ছোট ভিডিওটি দেখে নিন। তারপর নিচের বাটন থেকে ভিডিও অ্যাপ খুলে আপনার পছন্দের ভিডিও দেখুন।',tutorial_button_text:gv('set-tutorial-button')||'🎬 ভিডিও দেখতে শুরু করুন',storage_channel_id:parseInt(gv('set-storage-channel'))||null,maintenance_message:gv('set-maintenance-message')||'⚙️ সিস্টেমটি এখন Maintenance Mode-এ আছে। পরে আবার চেষ্টা করুন।',support_url:gv('set-support-url')||null,join_channel_url:gv('set-join-channel-url')||null,start_button_text:'🎬 ভিডিও দেখতে শুরু করুন',comments_enabled:document.getElementById('set-comments-enabled')?.checked!==false,reactions_enabled:document.getElementById('set-reactions-enabled')?.checked!==false,favorites_enabled:document.getElementById('set-favorites-enabled')?.checked!==false,profile_stats_enabled:document.getElementById('set-profile-stats-enabled')?.checked!==false,adsgram_enabled:document.getElementById('set-adsgram-enabled')?.checked!==false,adsgram_block_id:gv('set-adsgram-block-id')||'int-45179',required_ads_default:parseInt(gv('set-required-ads-default'))||1,ad_button_text:gv('set-ad-button-text')||'📢 Ad দেখুন',ad_unlock_text:gv('set-ad-unlock-text')||'🔓 ভিডিও আনলক করুন',monetization_mode:gv('set-monetization-mode')||'both',monetag_enabled:document.getElementById('set-monetag-enabled')?.checked!==false,monetag_zone_id:gv('set-monetag-zone-id')||'11404425',monetag_required_default:parseInt(gv('set-monetag-required-default'))||1,monetag_button_text:gv('set-monetag-button-text')||'💰 Monetag Ad দেখুন',monetag_wait_seconds:0,welcome_manager_enabled:document.getElementById('set-welcome-manager-enabled')?.checked!==false,join_request_welcome_enabled:document.getElementById('set-join-request-welcome-enabled')?.checked!==false,direct_join_welcome_enabled:document.getElementById('set-direct-join-welcome-enabled')?.checked!==false,leave_inbox_enabled:document.getElementById('set-leave-inbox-enabled')?.checked!==false,auto_approve_join_requests:!!document.getElementById('set-auto-approve-join-requests')?.checked,join_welcome_text:gv('set-join-welcome-text')||'👋 স্বাগতম! আমাদের ভিডিও কমিউনিটিতে আপনাকে স্বাগতম। নিচের বাটন থেকে ভিডিও অ্যাপ খুলুন।',leave_inbox_text:gv('set-leave-inbox-text')||'😢 আপনি আমাদের গ্রুপ/চ্যানেল থেকে বের হয়ে গেছেন। নতুন ভিডিও মিস না করতে আবার যুক্ত হতে পারেন।',welcome_video_button_text:gv('set-welcome-video-button-text')||'🎬 ভিডিও ওপেন করুন',welcome_video_button_url:gv('set-welcome-video-button-url')||null,welcome_video_button_enabled:document.getElementById('set-welcome-video-button-enabled')?.checked!==false,welcome_start_button_text:gv('set-welcome-start-button-text')||'🚀 Start Bot',welcome_start_button_url:gv('set-welcome-start-button-url')||null,welcome_start_button_enabled:document.getElementById('set-welcome-start-button-enabled')?.checked!==false,welcome_rejoin_button_text:gv('set-welcome-rejoin-button-text')||'🔄 আবার Join করুন',welcome_rejoin_button_url:gv('set-welcome-rejoin-button-url')||null,welcome_rejoin_button_enabled:document.getElementById('set-welcome-rejoin-button-enabled')?.checked!==false};
+  const data={brand_name:gv('set-brand')||'Bangladesh Viral Video',brand_subtitle:gv('set-brand-subtitle')||'PREMIUM VIDEO HUB',hero_text:gv('set-hero-text')||'ফোনের গ্যালারির মতো সহজে ভিডিও বাছাই করুন, Ad/Task সম্পন্ন করে নিরাপদে আনলক করুন।',nav_home:gv('set-nav-home')||'হোম',nav_fav:gv('set-nav-fav')||'পছন্দ',nav_unlock:gv('set-nav-unlock')||'আনলক',nav_viral:gv('set-nav-viral')||'ভাইরাল লিংক',nav_profile:gv('set-nav-profile')||'প্রোফাইল',online_label:gv('set-online-label')||'Online',show_online:document.getElementById('set-show-online')?.checked!==false,web_app_url:gv('set-webapp-url')||null,bot_menu_button_text:gv('set-menu-button-text')||'🎬 Video open',welcome_text:gv('set-welcome-text')||'👋 স্বাগতম! নিচের বাটন থেকে ভিডিও অ্যাপ খুলুন।',watch_button_text:gv('set-watch-text')||'Watch Video',broadcast_button_text:gv('set-broadcast-text')||'▶ ভিডিও ওপেন করুন',auto_delete_minutes:parseInt(gv('set-delete-min'))||20,protect_content:document.getElementById('set-protect').checked,maintenance_mode:document.getElementById('set-maintenance').checked,tutorial_enabled:document.getElementById('set-tutorial-enabled')?.checked!==false,tutorial_video_code:gv('set-tutorial-code')||null,tutorial_caption:gv('set-tutorial-caption')||'🎓 ভিডিও কীভাবে দেখবেন\n\nএই ছোট ভিডিওটি দেখে নিন। তারপর নিচের বাটন থেকে ভিডিও অ্যাপ খুলে আপনার পছন্দের ভিডিও দেখুন।',tutorial_button_text:gv('set-tutorial-button')||'🎬 ভিডিও দেখতে শুরু করুন',storage_channel_id:parseInt(gv('set-storage-channel'))||null,maintenance_message:gv('set-maintenance-message')||'⚙️ সিস্টেমটি এখন Maintenance Mode-এ আছে। পরে আবার চেষ্টা করুন।',support_url:gv('set-support-url')||null,join_channel_url:gv('set-join-channel-url')||null,start_button_text:'🎬 ভিডিও দেখতে শুরু করুন',comments_enabled:document.getElementById('set-comments-enabled')?.checked!==false,reactions_enabled:document.getElementById('set-reactions-enabled')?.checked!==false,favorites_enabled:document.getElementById('set-favorites-enabled')?.checked!==false,profile_stats_enabled:document.getElementById('set-profile-stats-enabled')?.checked!==false,adsgram_enabled:document.getElementById('set-adsgram-enabled')?.checked!==false,adsgram_block_id:gv('set-adsgram-block-id')||'int-45179',required_ads_default:parseInt(gv('set-required-ads-default'))||1,ad_button_text:gv('set-ad-button-text')||'📢 Ad দেখুন',ad_unlock_text:gv('set-ad-unlock-text')||'🔓 ভিডিও আনলক করুন',monetization_mode:gv('set-monetization-mode')||'both',monetag_enabled:document.getElementById('set-monetag-enabled')?.checked!==false,monetag_zone_id:gv('set-monetag-zone-id')||'11404425',monetag_required_default:parseInt(gv('set-monetag-required-default'))||1,monetag_button_text:gv('set-monetag-button-text')||'💰 Monetag Ad দেখুন',monetag_wait_seconds:0,welcome_manager_enabled:document.getElementById('set-welcome-manager-enabled')?.checked!==false,join_request_welcome_enabled:document.getElementById('set-join-request-welcome-enabled')?.checked!==false,direct_join_welcome_enabled:document.getElementById('set-direct-join-welcome-enabled')?.checked!==false,leave_inbox_enabled:document.getElementById('set-leave-inbox-enabled')?.checked!==false,auto_approve_join_requests:!!document.getElementById('set-auto-approve-join-requests')?.checked,join_welcome_text:gv('set-join-welcome-text')||'👋 স্বাগতম! আমাদের ভিডিও কমিউনিটিতে আপনাকে স্বাগতম। নিচের বাটন থেকে ভিডিও অ্যাপ খুলুন।',leave_inbox_text:gv('set-leave-inbox-text')||'😢 আপনি আমাদের গ্রুপ/চ্যানেল থেকে বের হয়ে গেছেন। নতুন ভিডিও মিস না করতে আবার যুক্ত হতে পারেন।',welcome_video_button_text:gv('set-welcome-video-button-text')||'🎬 ভিডিও ওপেন করুন',welcome_video_button_url:gv('set-welcome-video-button-url')||null,welcome_video_button_enabled:document.getElementById('set-welcome-video-button-enabled')?.checked!==false,welcome_start_button_text:gv('set-welcome-start-button-text')||'🚀 Start Bot',welcome_start_button_url:gv('set-welcome-start-button-url')||null,welcome_start_button_enabled:document.getElementById('set-welcome-start-button-enabled')?.checked!==false,welcome_rejoin_button_text:gv('set-welcome-rejoin-button-text')||'🔄 আবার Join করুন',welcome_rejoin_button_url:gv('set-welcome-rejoin-button-url')||null,welcome_rejoin_button_enabled:document.getElementById('set-welcome-rejoin-button-enabled')?.checked!==false};
   const btn=document.getElementById('settings-save-btn');
   settingsSaveInFlight=true;
   if(btn){btn.disabled=true;btn.textContent='⏳ সেভ হচ্ছে...';}
