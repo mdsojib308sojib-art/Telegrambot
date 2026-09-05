@@ -2278,6 +2278,31 @@ async def api_admin_viral_delete(request):
     return web.json_response({"ok": True})
 
 
+async def api_admin_loading_screen(request):
+    require_admin(request, "can_manage_settings")
+    d = await json_body(request)
+    loading_text = str(d.get("loading_text") or "VidUnlock Loading...").strip()[:120]
+    loading_logo = d.get("loading_logo")
+    if loading_logo is not None:
+        loading_logo = str(loading_logo).strip()
+        # Only accept a compact image data URL or empty/null remove.
+        if loading_logo and not loading_logo.startswith(("data:image/png;base64,", "data:image/jpeg;base64,", "data:image/webp;base64,")):
+            raise web.HTTPBadRequest(text="Invalid loading logo")
+        if len(loading_logo) > 700000:
+            raise web.HTTPBadRequest(text="Loading logo is too large")
+    await db_execute("INSERT INTO app_settings(id) VALUES('main') ON CONFLICT (id) DO NOTHING")
+    await db_execute(
+        "UPDATE app_settings SET loading_text=%s,loading_logo=%s,updated_at=CURRENT_TIMESTAMP WHERE id='main'",
+        (loading_text, loading_logo or None),
+    )
+    saved = await get_settings()
+    return web.json_response({
+        "ok": True,
+        "loading_text": saved.get("loading_text") or "VidUnlock Loading...",
+        "loading_logo": saved.get("loading_logo") or ""
+    })
+
+
 async def api_admin_settings_save(request):
     require_admin(request, "can_manage_settings")
     d = await json_body(request)
@@ -2567,6 +2592,7 @@ async def start_web_server():
     app.router.add_post("/api/admin/categories", api_admin_category_save)
     app.router.add_post("/api/admin/viral-links", api_admin_viral_save)
     app.router.add_delete("/api/admin/viral-links/{link_id}", api_admin_viral_delete)
+    app.router.add_post("/api/admin/loading-screen", api_admin_loading_screen)
     app.router.add_post("/api/admin/settings", api_admin_settings_save)
     app.router.add_get("/api/admin/managed-chats", api_admin_managed_chats)
     app.router.add_post("/api/admin/managed-chats", api_admin_managed_chats)
