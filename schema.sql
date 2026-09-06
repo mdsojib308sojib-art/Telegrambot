@@ -589,3 +589,5 @@ ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS tutorial_help_enabled BOOLEAN 
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS tutorial_help_button_text TEXT DEFAULT '❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন';
 ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS tutorial_help_video_url TEXT;
 
+
+ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS short_link_button_text TEXT DEFAULT '🔗 শর্ট লিংক খুলুন';
