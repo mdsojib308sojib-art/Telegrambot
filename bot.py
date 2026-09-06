@@ -139,7 +139,8 @@ async def init_db():
                 "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS loading_logo TEXT",
                 "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS tutorial_help_enabled BOOLEAN DEFAULT TRUE",
                 "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS tutorial_help_button_text TEXT DEFAULT '❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন'",
-                "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS tutorial_help_video_url TEXT"
+                "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS tutorial_help_video_url TEXT",
+                "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS short_link_button_text TEXT DEFAULT '🔗 শর্ট লিংক খুলুন'"
             ):
                 await conn.execute(ddl)
     await refresh_admin_cache()
@@ -1427,9 +1428,7 @@ async def broadcast_worker():
                     for ch in channels:
                         chat_id = int(ch["chat_id"])
                         try:
-                            status = await _notification_channel_status(chat_id)
-                            if not status.get("ok"):
-                                raise RuntimeError(status.get("error") or "Notification Bot cannot post to target")
+                            # V27: actual Telegram send is the final permission test.
                             if thumb.startswith("http://") or thumb.startswith("https://"):
                                 await bot.send_photo(chat_id, photo=thumb, caption=ch_caption, reply_markup=ch_kb, protect_content=True)
                             elif thumb.startswith("data:image/") and "," in thumb:
@@ -1738,6 +1737,12 @@ async def api_unlock_url(request):
     if not row:
         raise web.HTTPNotFound(text="Package not found")
     await reset_expired_video_access(int(u["id"]), row.get("video_code"), settings)
+    dmode = (row.get("delivery_mode") or "video_bot").strip()
+    if row.get("short_url"):
+        dmode = "short_link"
+    if dmode == "short_link" and row.get("short_url"):
+        await db_execute("INSERT INTO user_video_events(user_id,video_id,video_code,event_type,created_at) VALUES(%s,%s,%s,'unlock_granted',%s)", (int(u["id"]), vid, row.get("video_code"), utcnow_sql()))
+        return web.json_response({"ok": True, "url": row.get("short_url"), "mode": "short_link"})
     mode = str(settings.get("monetization_mode") or "both").lower()
     # V24: Manual per-video ad count. Global ad-count settings never override a video's value.
     manual_req = max(0, min(10, int(row.get("required_ads") or 0)))
@@ -1751,9 +1756,6 @@ async def api_unlock_url(request):
         raise web.HTTPForbidden(text=f"Complete Monetag first ({mon_done}/{mon_req})")
     await db_execute("INSERT INTO user_video_events(user_id,video_id,video_code,event_type,created_at) VALUES(%s,%s,%s,'unlock_granted',%s)", (int(u["id"]), vid, row.get("video_code"), utcnow_sql()))
     await v20_credit_video_reward(int(u['id']), vid)
-    dmode = (row.get("delivery_mode") or "video_bot").strip()
-    if dmode == "short_link" and row.get("short_url"):
-        return web.json_response({"ok": True, "url": row.get("short_url"), "mode": "short_link"})
     target = f"https://t.me/{VIDEO_BOT_USERNAME}?start={row.get('video_code')}"
     return web.json_response({"ok": True, "url": target, "mode": "video_bot", "video_bot_username": VIDEO_BOT_USERNAME})
 
@@ -1771,9 +1773,18 @@ async def api_ad_status(request):
     u=request_user(request)
     if not u: raise web.HTTPUnauthorized(text="Telegram authorization required")
     vid=request.match_info["video_id"]; settings=await get_settings()
-    row=await db_fetchone("SELECT required_ads,video_code FROM videos WHERE id=%s AND published=TRUE",(vid,))
+    row=await db_fetchone("SELECT required_ads,video_code,short_url,delivery_mode FROM videos WHERE id=%s AND published=TRUE",(vid,))
     if not row: raise web.HTTPNotFound(text="Package not found")
     await reset_expired_video_access(int(u["id"]), row.get("video_code"), settings)
+    dmode=str(row.get("delivery_mode") or "video_bot").strip()
+    if row.get("short_url"):
+        dmode="short_link"
+    if dmode=="short_link" and row.get("short_url"):
+        return web.json_response({
+            "enabled": False, "unlocked": True, "mode": "short_link", "short_url": row.get("short_url"),
+            "adsgram": {"enabled": False, "required": 0, "completed": 0},
+            "monetag": {"enabled": False, "required": 0, "completed": 0}
+        })
     mode=str(settings.get("monetization_mode") or "both").lower()
     # V24: Manual per-video ad count.
     manual_req=max(0,min(10,int(row.get("required_ads") or 0)))
@@ -1962,9 +1973,10 @@ async def _notification_channel_status(chat_id: int):
         me = await bot.get_me()
         member = await bot.get_chat_member(int(chat_id), me.id)
         status = str(getattr(member, "status", "") or "")
-        can_post = bool(getattr(member, "can_post_messages", False))
+        can_post_attr = getattr(member, "can_post_messages", None)
+        can_post = True if can_post_attr is None and status in ("administrator", "creator") else bool(can_post_attr)
         chat_type = str(getattr(chat, "type", "") or "")
-        # In groups/supergroups an ordinary member can send unless restricted.
+        # V27: Telegram may omit can_post_messages for some owner/admin member objects.
         if chat_type in ("group", "supergroup"):
             allowed = status not in ("left", "kicked", "restricted")
         else:
@@ -2123,11 +2135,12 @@ async def api_v20_admin_channels(request):
             (cid,title,bool(status.get('ok')))
         )
         return web.json_response({
-            'ok': bool(status.get('ok')),
+            'ok': True,
+            'verified': bool(status.get('ok')),
             'saved': True,
             'channel': status,
-            'message': 'Channel verified ✅' if status.get('ok') else status.get('error')
-        }, status=200 if status.get('ok') else 400)
+            'message': 'Channel verified ✅' if status.get('ok') else ('Channel save হয়েছে, Verify দরকার: ' + str(status.get('error') or 'Bot permission missing'))
+        })
 
     await db_execute("DELETE FROM notification_channels WHERE id=%s",(int(request.match_info['channel_id']),))
     return web.json_response({'ok':True})
@@ -2230,6 +2243,9 @@ async def api_admin_video_save(request):
     delivery_mode = str(d.get("delivery_mode") or (existing or {}).get("delivery_mode") or "video_bot").strip()
     if delivery_mode not in {"video_bot", "short_link"}: delivery_mode = "video_bot"
     short_url = str(d.get("short_url") or (existing or {}).get("short_url") or "").strip()
+    if short_url:
+        delivery_mode = "short_link"
+        required_ads = 0
     await db_execute(
         """INSERT INTO videos(id,share_code,video_code,title,category_id,thumb,thumb_text,deep_link,short_url,delivery_mode,broadcast_enabled,broadcast_sent,published,views,required_ads,featured,trending,created_at)
            VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,FALSE,%s,%s,%s,%s,%s,%s)
@@ -2306,6 +2322,36 @@ async def api_admin_loading_screen(request):
     })
 
 
+async def api_admin_access_buttons(request):
+    require_admin(request, "can_manage_settings")
+    d = await json_body(request)
+    ad_text = str(d.get("ad_watch_button_text") or "📢 Ad দেখুন").strip()[:64]
+    watch_text = str(d.get("watch_video_button_text") or "🎬 ভিডিও দেখুন").strip()[:64]
+    short_text = str(d.get("short_link_button_text") or "🔗 শর্ট লিংক খুলুন").strip()[:64]
+    help_enabled = bool(d.get("tutorial_help_enabled", True))
+    help_text = str(d.get("tutorial_help_button_text") or "❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন").strip()[:120]
+    help_url = str(d.get("tutorial_help_video_url") or "").strip()[:1000]
+    if help_url and not help_url.startswith(("https://", "http://", "tg://")):
+        raise web.HTTPBadRequest(text="Help/Tutorial link must start with https://, http:// or tg://")
+    await db_execute("INSERT INTO app_settings(id) VALUES('main') ON CONFLICT (id) DO NOTHING")
+    await db_execute(
+        """UPDATE app_settings SET ad_watch_button_text=%s,watch_video_button_text=%s,
+           short_link_button_text=%s,tutorial_help_enabled=%s,tutorial_help_button_text=%s,
+           tutorial_help_video_url=%s,updated_at=CURRENT_TIMESTAMP WHERE id='main'""",
+        (ad_text, watch_text, short_text, help_enabled, help_text, help_url or None)
+    )
+    s = await get_settings()
+    return web.json_response({
+        "ok": True,
+        "ad_watch_button_text": s.get("ad_watch_button_text") or ad_text,
+        "watch_video_button_text": s.get("watch_video_button_text") or watch_text,
+        "short_link_button_text": s.get("short_link_button_text") or short_text,
+        "tutorial_help_enabled": bool(s.get("tutorial_help_enabled", True)),
+        "tutorial_help_button_text": s.get("tutorial_help_button_text") or help_text,
+        "tutorial_help_video_url": s.get("tutorial_help_video_url") or ""
+    })
+
+
 async def api_admin_tutorial_help(request):
     require_admin(request, "can_manage_settings")
     d = await json_body(request)
@@ -2359,7 +2405,8 @@ async def api_admin_settings_save(request):
         "welcome_rejoin_button_text", "welcome_rejoin_button_url", "welcome_rejoin_button_enabled",
         "mini_start_button_enabled", "mini_start_button_text", "mini_start_text",
         "loading_text", "loading_logo",
-        "tutorial_help_enabled", "tutorial_help_button_text", "tutorial_help_video_url"
+        "tutorial_help_enabled", "tutorial_help_button_text", "tutorial_help_video_url",
+        "short_link_button_text"
     ]
     bool_fields = {"show_online", "protect_content", "maintenance_mode", "tutorial_enabled", "comments_enabled", "reactions_enabled", "favorites_enabled", "profile_stats_enabled", "adsgram_enabled", "monetag_enabled", "welcome_manager_enabled", "join_request_welcome_enabled", "direct_join_welcome_enabled", "leave_inbox_enabled", "auto_approve_join_requests", "welcome_video_button_enabled", "welcome_start_button_enabled", "welcome_rejoin_button_enabled", "mini_start_button_enabled"}
 
@@ -2627,6 +2674,7 @@ async def start_web_server():
     app.router.add_delete("/api/admin/viral-links/{link_id}", api_admin_viral_delete)
     app.router.add_post("/api/admin/loading-screen", api_admin_loading_screen)
     app.router.add_post("/api/admin/tutorial-help", api_admin_tutorial_help)
+    app.router.add_post("/api/admin/access-buttons", api_admin_access_buttons)
     app.router.add_post("/api/admin/settings", api_admin_settings_save)
     app.router.add_get("/api/admin/managed-chats", api_admin_managed_chats)
     app.router.add_post("/api/admin/managed-chats", api_admin_managed_chats)
