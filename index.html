@@ -38,11 +38,11 @@ body{padding-bottom:100px}
 
 /* LOADING SCREEN */
 #app-loader{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
-.loader-logo-wrap{width:96px;height:96px;position:relative;display:grid;place-items:center;flex:0 0 96px;border-radius:50%;background:#000}
-.loader-ring{position:absolute;inset:0;border-radius:50%;border:5px solid rgba(124,77,255,.22);border-top-color:#8b5cff;animation:spin 1s linear infinite;background:#000}
+.loader-logo-wrap{width:96px;height:96px;position:relative;display:grid;place-items:center;flex:0 0 96px;border-radius:50%;background:#000;overflow:hidden}
+.loader-ring{position:absolute;inset:0;border-radius:50%;border:5px solid rgba(124,77,255,.20);border-top-color:#8b5cff;animation:spin 1s linear infinite;background:transparent;z-index:1}
 .loader-logo-img{width:76px;height:76px;border-radius:50%;clip-path:circle(50% at 50% 50%);object-fit:cover;object-position:center;background:#000;padding:0;box-sizing:border-box;box-shadow:none;animation:loaderLogoSpin 1.8s linear infinite;position:relative;z-index:2}
 .loader-logo-fallback{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;background:#000;color:#fff;font-size:28px;box-shadow:none;position:relative;z-index:2}
-#loader-text{font-size:14px;font-weight:700;color:#fff;background:#000;padding:8px 12px;border-radius:10px;margin:0;text-align:center;max-width:88vw;position:relative;z-index:3;text-shadow:none}
+#loader-text{font-size:14px;font-weight:700;color:#fff;background:transparent;padding:0;margin:0;text-align:center;max-width:88vw;position:relative;z-index:3;text-shadow:none}
 .spinner{width:50px;height:50px;border:4px solid var(--surface-2);border-top:4px solid var(--primary);border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes loaderLogoSpin{to{transform:rotate(360deg)}}
@@ -614,6 +614,7 @@ body{background:radial-gradient(900px 500px at 10% -5%,rgba(124,77,255,.24),tran
     <button class="tab" onclick="switchAdminSubView('v20tasks', this)">🎯 Task Settings</button>
     <button class="tab" onclick="switchAdminSubView('v20notify', this)">🔔 Notification Settings</button>
     <button class="tab" onclick="switchAdminSubView('v20withdraw', this)">💸 Withdraw Requests</button>
+    <button class="tab" onclick="switchAdminSubView('accessbuttons', this)">🔘 Access Buttons</button>
     <button class="tab" onclick="switchAdminSubView('tutorialhelp', this)">🎓 Tutorial Button</button>
     <button class="tab" onclick="switchAdminSubView('loading', this)">🖼 Loading Screen</button>
     <button class="tab" onclick="switchAdminSubView('settings', this)" data-i18n="settings">সেটিংস</button>
@@ -666,7 +667,7 @@ body{background:radial-gradient(900px 500px at 10% -5%,rgba(124,77,255,.24),tran
       <div class="form-group"><label>ক্যাটাগরি</label><select id="av-cat"></select></div>
       <div class="form-group"><label>Video Code (যেমন: video_145)</label><input type="text" id="av-video-code" placeholder="video_145"></div>
       <div class="form-group"><label>Original Bot Deep Link</label><input type="text" id="av-deep-link" placeholder="https://t.me/Bangladesh_vairal_videobot?start=video_145"></div>
-      <div class="form-group"><label>Short Link (শুধু ‘ভিডিও দেখুন’ বাটনে থাকবে)</label><input type="text" id="av-short-link" placeholder="https://terabooxshort.com/..."></div>
+      <div class="form-group"><label>Short Link (শুধু ‘ভিডিও দেখুন’ বাটনে থাকবে)</label><input type="text" id="av-short-link" placeholder="https://terabooxshort.com/..." oninput="syncShortLinkMode()"></div>
       <div class="form-group"><label>Delivery Mode</label><select id="av-delivery-mode"><option value="video_bot">🤖 Video Bot — Ad শেষে সরাসরি ভিডিও</option><option value="short_link">🔗 Short Link — পুরোনো flow</option></select></div>
       <div class="form-group full"><label>Thumbnail-এর উপরের লেখা</label><input type="text" id="av-thumb-text" maxlength="180" placeholder="Channel caption থেকে অটো আসবে — চাইলে edit করুন" oninput="updateThumbTextPreview()"><small style="opacity:.7">এই লেখা thumbnail-এর নিচের অংশে premium colored overlay হিসেবে দেখা যাবে। খালি রাখলে overlay থাকবে না।</small></div>
       <div class="form-group">
@@ -829,7 +830,21 @@ Verification সফল হলে ভিডিও যাবে। <b>এই Chann
 </div>
 <button class="btn btn-p" onclick="saveV20Texts()">Save Notification Texts</button></div></div>
   <div id="admin-v20withdraw" class="admin-subview hidden"><div class="admin-card"><h4>💸 Withdraw Requests</h4><div id="v20-withdraw-list" class="v20-list"></div></div></div>
-  <div id="admin-tutorialhelp" class="admin-subview hidden">
+  <div id="admin-accessbuttons" class="admin-subview hidden">
+  <div class="admin-card">
+    <h4>🔘 Video Access Button Settings</h4>
+    <p style="font-size:11px;color:var(--muted);line-height:1.55;margin:6px 0 14px">Video Details-এর Access box-এর buttonগুলো এখান থেকে আলাদা করে edit করুন।</p>
+    <div class="form-group full"><label>Ad Button Name</label><input id="access-btn-ad" placeholder="📢 Ad দেখুন"></div>
+    <div class="form-group full"><label>Video/Unlock Button Name</label><input id="access-btn-watch" placeholder="🎬 ভিডিও দেখুন"></div>
+    <div class="form-group full"><label>Short Link Button Name</label><input id="access-btn-short" placeholder="🔗 শর্ট লিংক খুলুন"></div>
+    <div class="form-group full"><label style="display:flex;align-items:center;gap:8px"><input id="access-btn-help-enabled" type="checkbox" checked style="width:auto"> Help/Tutorial Button ON</label></div>
+    <div class="form-group full"><label>Help Button Name</label><input id="access-btn-help-text" placeholder="❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন"></div>
+    <div class="form-group full"><label>Help/Tutorial Video Link</label><input id="access-btn-help-url" placeholder="https://t.me/... অথবা https://..."></div>
+    <button class="btn btn-p" onclick="saveAccessButtonSettings()">💾 Save Access Buttons</button>
+  </div>
+</div>
+
+<div id="admin-tutorialhelp" class="admin-subview hidden">
   <div class="admin-card">
     <h4>🎓 Video Help / Tutorial Button</h4>
     <p style="font-size:11px;color:var(--muted);line-height:1.55;margin:6px 0 14px">
@@ -1247,6 +1262,7 @@ async function loadPublicSettings() {
 }
 
 function applyAppSettings(){
+  setTimeout(fillAccessButtonSettings,0);
   setTimeout(fillTutorialHelpSettings,0);
   const s = state.appSettings || {};
   const setText=(id,val)=>{const el=document.getElementById(id);if(el&&val)el.textContent=val};
@@ -1589,6 +1605,13 @@ async function renderAdGate(v){
 
     const a=st.adsgram||{}, m=st.monetag||{};
     const ui=state.appSettings||{};
+    if(st.mode==='short_link' && st.short_url){
+      const title=ui.video_access_title||'🎁 Video Access';
+      const shortBtn=ui.short_link_button_text||'🔗 শর্ট লিংক খুলুন';
+      const secure=ui.video_access_secure_text||'🛡️ 100% নিরাপদ • আপনার তথ্য গোপন রাখা হয়';
+      area.innerHTML=`<div class="v192-unlock-card"><div class="v192-unlock-head"><div class="v192-unlock-icon">🔗</div><div class="v192-unlock-copy"><div class="v192-unlock-title">${escapeHtml(title)}</div><div class="v192-unlock-sub">এই ভিডিওটি Short Link Mode-এ আছে। কোনো Ad দেখতে হবে না।</div></div></div><button class="v192-main-action" onclick="openUnlockedVideo('${v.id}')">${escapeHtml(shortBtn)}</button>${(ui.tutorial_help_enabled!==false && (ui.tutorial_help_video_url||'').trim())?`<button type="button" class="btn btn-g" style="margin-top:10px;border:1px solid rgba(255,255,255,.12);background:#11182b" onclick="openVideoHelpTutorial()">${escapeHtml(ui.tutorial_help_button_text||'❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন')}</button>`:''}<div class="v192-secure">${escapeHtml(secure)}</div></div>`;
+      return;
+    }
     const fmt=(txt,vals)=>Object.entries(vals).reduce((out,[k,val])=>String(out||'').split('{'+k+'}').join(String(val)),txt||'');
     const enabled=[a,m].filter(x=>x&&x.enabled);
     const required=enabled.reduce((n,x)=>n+Number(x.required||0),0);
@@ -1823,6 +1846,7 @@ function editVideo(id){
   document.getElementById('av-deep-link').value=v.deep_link||'';
   document.getElementById('av-short-link').value=v.short_url||'';document.getElementById('av-thumb-text').value=v.thumb_text||'';const dm=document.getElementById('av-delivery-mode');if(dm)dm.value=v.delivery_mode||'video_bot';
   document.getElementById('av-required-ads').value=Number(v.required_ads??1);
+  setTimeout(syncShortLinkMode,0);
   document.getElementById('av-broadcast').checked=!!v.broadcast_enabled;
   document.getElementById('av-featured').checked=!!v.featured;
   document.getElementById('av-trending').checked=v.trending!==false;
@@ -1846,15 +1870,28 @@ async function rebroadcastVideo(id){
   }
 }
 
+function syncShortLinkMode(){
+  const shortInput=document.getElementById('av-short-link');
+  const adsInput=document.getElementById('av-required-ads');
+  const mode=document.getElementById('av-delivery-mode');
+  const has=!!(shortInput?.value||'').trim();
+  if(has){
+    if(mode) mode.value='short_link';
+    if(adsInput){adsInput.value='0';adsInput.disabled=true;}
+  }else{
+    if(adsInput) adsInput.disabled=false;
+  }
+}
+
 async function saveVideo() {
   const title=(document.getElementById('av-title').value||'').trim(),catId=document.getElementById('av-cat').value;
   let videoCode=(document.getElementById('av-video-code').value||'').trim(),deepLink=(document.getElementById('av-deep-link').value||'').trim();
   const shortUrl=(document.getElementById('av-short-link').value||'').trim(), broadcastEnabled=!!document.getElementById('av-broadcast').checked;
-  const rawRequiredAds=parseInt(document.getElementById('av-required-ads').value,10); const requiredAds=Math.max(0,Math.min(10,Number.isFinite(rawRequiredAds)?rawRequiredAds:0));
+  const rawRequiredAds=parseInt(document.getElementById('av-required-ads').value,10); let requiredAds=Math.max(0,Math.min(10,Number.isFinite(rawRequiredAds)?rawRequiredAds:0)); if(shortUrl) requiredAds=0;
   const thumbPrev=document.getElementById('av-thumb-prev'), thumbBase64=thumbPrev?thumbPrev._data:'';
   if(!title)return showToast('ভিডিওর শিরোনাম দিন'); if(!videoCode&&deepLink){const m=deepLink.match(/[?&]start=(video_[A-Za-z0-9_-]+)/);if(m)videoCode=m[1];} if(!videoCode)return showToast('video_xxx code দিন');
   const botName=window.RUNTIME_BOT_USERNAME||BOT_USERNAME;if(!deepLink)deepLink=`https://t.me/${botName}?start=${videoCode}`;
-  const deliveryMode=document.getElementById('av-delivery-mode')?.value||'video_bot'; if(deliveryMode==='short_link'&&!shortUrl)return showToast('Short Link দিন');
+  let deliveryMode=document.getElementById('av-delivery-mode')?.value||'video_bot'; if(shortUrl) deliveryMode='short_link'; if(deliveryMode==='short_link'&&!shortUrl)return showToast('Short Link দিন');
   const old=editingVideoId?state.videos.find(v=>v.id===editingVideoId):null;
   const thumbText=(document.getElementById('av-thumb-text')?.value||'').trim(); const vidData={id:editingVideoId||('post_'+Date.now()),share_code:old?.share_code,video_code:videoCode,title,category_id:catId,thumb:thumbBase64||old?.thumb||'',thumb_text:thumbText,deep_link:deepLink,short_url:shortUrl,delivery_mode:deliveryMode,broadcast_enabled:broadcastEnabled,published:document.getElementById('av-published').checked,featured:document.getElementById('av-featured').checked,trending:document.getElementById('av-trending').checked,required_ads:requiredAds,views:old?.views||0};
   try{const saved=await apiFetch('/api/admin/videos',{method:'POST',body:JSON.stringify(vidData)});vidData.id=saved.id||vidData.id;vidData.share_code=saved.share_code;vidData.share_link=saved.share_link; if(old){Object.assign(old,vidData);}else{const same=state.videos.find(x=>x.id===vidData.id||x.video_code===vidData.video_code);if(same)Object.assign(same,vidData);else state.videos.unshift(vidData);} const out=document.getElementById('av-generated-share');if(out)out.value=saved.share_link||'';saveState();renderAll();showToast(old?'Package Update হয়েছে ✅':'Package Publish হয়েছে ✅','success');cancelVideoEdit();}catch(err){console.error(err);showToast('সেভ হয়নি: '+(err.message||'API error'),'danger');}
@@ -2029,6 +2066,33 @@ async function saveLoadingScreenSettings(){
   }catch(e){
     showToast('Save হয়নি: '+(e.message||'API error'),'danger');
   }
+}
+
+async function saveAccessButtonSettings(){
+  const payload={
+    ad_watch_button_text:(document.getElementById('access-btn-ad')?.value||'📢 Ad দেখুন').trim(),
+    watch_video_button_text:(document.getElementById('access-btn-watch')?.value||'🎬 ভিডিও দেখুন').trim(),
+    short_link_button_text:(document.getElementById('access-btn-short')?.value||'🔗 শর্ট লিংক খুলুন').trim(),
+    tutorial_help_enabled:!!document.getElementById('access-btn-help-enabled')?.checked,
+    tutorial_help_button_text:(document.getElementById('access-btn-help-text')?.value||'❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন').trim(),
+    tutorial_help_video_url:(document.getElementById('access-btn-help-url')?.value||'').trim()
+  };
+  try{
+    const r=await apiFetch('/api/admin/access-buttons',{method:'POST',body:JSON.stringify(payload)});
+    state.appSettings=Object.assign(state.appSettings||{},r);
+    fillAccessButtonSettings();
+    fillTutorialHelpSettings();
+    showToast('Access Buttons Save হয়েছে ✅','success');
+  }catch(e){showToast('Save হয়নি: '+(e.message||'API error'),'danger');}
+}
+function fillAccessButtonSettings(){
+  const s=state.appSettings||{};
+  [['access-btn-ad',s.ad_watch_button_text||'📢 Ad দেখুন'],
+   ['access-btn-watch',s.watch_video_button_text||'🎬 ভিডিও দেখুন'],
+   ['access-btn-short',s.short_link_button_text||'🔗 শর্ট লিংক খুলুন'],
+   ['access-btn-help-text',s.tutorial_help_button_text||'❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন'],
+   ['access-btn-help-url',s.tutorial_help_video_url||'']].forEach(([id,val])=>{const e=document.getElementById(id);if(e)e.value=val;});
+  const en=document.getElementById('access-btn-help-enabled');if(en)en.checked=s.tutorial_help_enabled!==false;
 }
 
 async function saveTutorialHelpSettings(){
