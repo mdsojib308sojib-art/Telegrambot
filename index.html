@@ -38,11 +38,11 @@ body{padding-bottom:100px}
 
 /* LOADING SCREEN */
 #app-loader{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
-.loader-logo-wrap{width:92px;height:92px;position:relative;display:grid;place-items:center;flex:0 0 92px}
-.loader-ring{position:absolute;inset:0;border-radius:50%;border:5px solid rgba(124,77,255,.20);border-top-color:#7c4dff;animation:spin 1s linear infinite}
-.loader-logo-img{width:76px;height:76px;border-radius:50%;object-fit:cover;background:transparent;padding:0;box-sizing:border-box;box-shadow:none;animation:loaderLogoSpin 1.8s linear infinite}
-.loader-logo-fallback{width:68px;height:68px;border-radius:18px;display:grid;place-items:center;background:var(--grad-hero);font-size:28px;box-shadow:var(--shadow-glow)}
-#loader-text{font-size:14px;font-weight:600;color:#fff;margin:0;text-align:center;max-width:88vw;position:relative;z-index:3;text-shadow:0 1px 4px rgba(0,0,0,.55)}
+.loader-logo-wrap{width:96px;height:96px;position:relative;display:grid;place-items:center;flex:0 0 96px;border-radius:50%;background:#000}
+.loader-ring{position:absolute;inset:0;border-radius:50%;border:5px solid rgba(124,77,255,.22);border-top-color:#8b5cff;animation:spin 1s linear infinite;background:#000}
+.loader-logo-img{width:76px;height:76px;border-radius:50%;clip-path:circle(50% at 50% 50%);object-fit:cover;object-position:center;background:#000;padding:0;box-sizing:border-box;box-shadow:none;animation:loaderLogoSpin 1.8s linear infinite;position:relative;z-index:2}
+.loader-logo-fallback{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;background:#000;color:#fff;font-size:28px;box-shadow:none;position:relative;z-index:2}
+#loader-text{font-size:14px;font-weight:700;color:#fff;background:#000;padding:8px 12px;border-radius:10px;margin:0;text-align:center;max-width:88vw;position:relative;z-index:3;text-shadow:none}
 .spinner{width:50px;height:50px;border:4px solid var(--surface-2);border-top:4px solid var(--primary);border-radius:50%;animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes loaderLogoSpin{to{transform:rotate(360deg)}}
@@ -614,6 +614,7 @@ body{background:radial-gradient(900px 500px at 10% -5%,rgba(124,77,255,.24),tran
     <button class="tab" onclick="switchAdminSubView('v20tasks', this)">🎯 Task Settings</button>
     <button class="tab" onclick="switchAdminSubView('v20notify', this)">🔔 Notification Settings</button>
     <button class="tab" onclick="switchAdminSubView('v20withdraw', this)">💸 Withdraw Requests</button>
+    <button class="tab" onclick="switchAdminSubView('tutorialhelp', this)">🎓 Tutorial Button</button>
     <button class="tab" onclick="switchAdminSubView('loading', this)">🖼 Loading Screen</button>
     <button class="tab" onclick="switchAdminSubView('settings', this)" data-i18n="settings">সেটিংস</button>
   </div>
@@ -828,7 +829,38 @@ Verification সফল হলে ভিডিও যাবে। <b>এই Chann
 </div>
 <button class="btn btn-p" onclick="saveV20Texts()">Save Notification Texts</button></div></div>
   <div id="admin-v20withdraw" class="admin-subview hidden"><div class="admin-card"><h4>💸 Withdraw Requests</h4><div id="v20-withdraw-list" class="v20-list"></div></div></div>
-  <div id="admin-loading" class="admin-subview hidden">
+  <div id="admin-tutorialhelp" class="admin-subview hidden">
+  <div class="admin-card">
+    <h4>🎓 Video Help / Tutorial Button</h4>
+    <p style="font-size:11px;color:var(--muted);line-height:1.55;margin:6px 0 14px">
+      Video Details-এর Ad বাটনের নিচে এই Help Button থাকবে। এখান থেকে ON/OFF, Button Name এবং Tutorial Video Link পরিবর্তন করতে পারবেন।
+    </p>
+
+    <div class="form-group full">
+      <label style="display:flex;align-items:center;gap:8px">
+        <input id="tutorial-help-enabled" type="checkbox" checked style="width:auto">
+        Tutorial Help Button ON
+      </label>
+    </div>
+
+    <div class="form-group full">
+      <label>Button Name</label>
+      <input id="tutorial-help-button-text" placeholder="❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন">
+    </div>
+
+    <div class="form-group full">
+      <label>Tutorial Video Link</label>
+      <input id="tutorial-help-video-url" placeholder="https://t.me/... অথবা https://...">
+      <small style="display:block;margin-top:6px;color:var(--muted)">
+        Telegram post/video link, YouTube link বা অন্য HTTPS video link দিতে পারবেন।
+      </small>
+    </div>
+
+    <button class="btn btn-p" onclick="saveTutorialHelpSettings()">💾 Save Tutorial Button</button>
+  </div>
+</div>
+
+<div id="admin-loading" class="admin-subview hidden">
   <div class="admin-card">
     <h4>🖼 Mini App Loading Screen</h4>
     <p style="font-size:11px;color:var(--muted);line-height:1.55;margin:6px 0 14px">
@@ -1215,6 +1247,7 @@ async function loadPublicSettings() {
 }
 
 function applyAppSettings(){
+  setTimeout(fillTutorialHelpSettings,0);
   const s = state.appSettings || {};
   const setText=(id,val)=>{const el=document.getElementById(id);if(el&&val)el.textContent=val};
   setText('brand-title', s.brand_name || 'Viral Video');
@@ -1576,11 +1609,30 @@ async function renderAdGate(v){
     const providers=[];
     if(a.enabled && Number(a.completed||0)<Number(a.required||0)) providers.push(`<div class="v192-provider"><div><div class="v192-provider-name">AdsGram</div><div class="v192-provider-progress">${a.completed}/${a.required}</div></div><button class="btn btn-p" id="adsgram-watch-btn" onclick="watchProviderAd('${v.id}','adsgram')">${escapeHtml(adBtn)}</button></div>`);
     if(m.enabled && Number(m.completed||0)<Number(m.required||0)) providers.push(`<div class="v192-provider"><div><div class="v192-provider-name">Monetag</div><div class="v192-provider-progress">${m.completed}/${m.required}</div></div><button class="btn btn-p" id="monetag-watch-btn" onclick="watchProviderAd('${v.id}','monetag')">${escapeHtml(adBtn)}</button></div>`);
-    area.innerHTML=`<div class="v192-unlock-card"><div class="v192-unlock-head"><div class="v192-unlock-icon">🎬</div><div class="v192-unlock-copy"><div class="v192-unlock-title">${escapeHtml(title)}</div><div class="v192-unlock-sub">${escapeHtml(instruction)}</div></div></div><div style="margin:12px 0 8px;font-size:13px;line-height:1.7"><b>${escapeHtml(seen)}</b><br>${escapeHtml(remain)}</div><div class="v192-provider-stack">${providers.join('')}</div><div class="v192-secure">${escapeHtml(secure)}</div></div>`;
+    area.innerHTML=`<div class="v192-unlock-card"><div class="v192-unlock-head"><div class="v192-unlock-icon">🎬</div><div class="v192-unlock-copy"><div class="v192-unlock-title">${escapeHtml(title)}</div><div class="v192-unlock-sub">${escapeHtml(instruction)}</div></div></div><div style="margin:12px 0 8px;font-size:13px;line-height:1.7"><b>${escapeHtml(seen)}</b><br>${escapeHtml(remain)}</div><div class="v192-provider-stack">${providers.join('')}</div>
+${(state.appSettings?.tutorial_help_enabled!==false && (state.appSettings?.tutorial_help_video_url||'').trim()) ? `<button type="button" class="btn btn-g" style="margin-top:10px;border:1px solid rgba(255,255,255,.12);background:#11182b" onclick="openVideoHelpTutorial()">${escapeHtml(state.appSettings?.tutorial_help_button_text||'❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন')}</button>` : ''}
+<div class="v192-secure">${escapeHtml(secure)}</div></div>`;
   }catch(e){
     console.error('Ad status load failed',e);
     const msg=(e&&e.name==='AbortError')?'ভিডিও অ্যাক্সেস লোড হতে একটু সময় লাগছে':'ভিডিও অ্যাক্সেস এখন পাওয়া যাচ্ছে না';
     area.innerHTML=`<div class="v192-error"><b>${msg}</b><div>ইন্টারনেট ঠিক থাকলে আবার চেষ্টা করুন।</div><button class="btn btn-g" style="margin-top:10px" onclick="renderAdGate(currentActiveVid)">🔄 আবার চেষ্টা করুন</button></div>`;
+  }
+}
+
+
+function openVideoHelpTutorial(){
+  const link=(state.appSettings?.tutorial_help_video_url||'').trim();
+  if(!link) return showToast('Tutorial video link সেট করা হয়নি','danger');
+  try{
+    if(/^https:\/\/t\.me\//i.test(link) && window.Telegram?.WebApp?.openTelegramLink){
+      window.Telegram.WebApp.openTelegramLink(link);
+    }else if(window.Telegram?.WebApp?.openLink){
+      window.Telegram.WebApp.openLink(link);
+    }else{
+      window.location.href=link;
+    }
+  }catch(e){
+    window.location.href=link;
   }
 }
 
@@ -1978,6 +2030,36 @@ async function saveLoadingScreenSettings(){
     showToast('Save হয়নি: '+(e.message||'API error'),'danger');
   }
 }
+
+async function saveTutorialHelpSettings(){
+  const tutorial_help_enabled=!!document.getElementById('tutorial-help-enabled')?.checked;
+  const tutorial_help_button_text=(document.getElementById('tutorial-help-button-text')?.value||'❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন').trim();
+  const tutorial_help_video_url=(document.getElementById('tutorial-help-video-url')?.value||'').trim();
+  try{
+    const r=await apiFetch('/api/admin/tutorial-help',{
+      method:'POST',
+      body:JSON.stringify({tutorial_help_enabled,tutorial_help_button_text,tutorial_help_video_url})
+    });
+    state.appSettings=state.appSettings||{};
+    state.appSettings.tutorial_help_enabled=r.tutorial_help_enabled;
+    state.appSettings.tutorial_help_button_text=r.tutorial_help_button_text;
+    state.appSettings.tutorial_help_video_url=r.tutorial_help_video_url;
+    showToast('Tutorial Button Save হয়েছে ✅','success');
+  }catch(e){
+    showToast('Save হয়নি: '+(e.message||'API error'),'danger');
+  }
+}
+
+function fillTutorialHelpSettings(){
+  const s=state.appSettings||{};
+  const en=document.getElementById('tutorial-help-enabled');
+  const bt=document.getElementById('tutorial-help-button-text');
+  const ur=document.getElementById('tutorial-help-video-url');
+  if(en) en.checked=s.tutorial_help_enabled!==false;
+  if(bt) bt.value=s.tutorial_help_button_text||'❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন';
+  if(ur) ur.value=s.tutorial_help_video_url||'';
+}
+
 async function saveAdminSettings() {
   if(settingsSaveInFlight) return;
   const gv=id=>document.getElementById(id)?.value?.trim();
