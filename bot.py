@@ -136,7 +136,10 @@ async def init_db():
                 "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS mini_start_button_text TEXT DEFAULT '🚀 Mini Bot Start'",
                 "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS mini_start_text TEXT DEFAULT '👋 স্বাগতম! নতুন ভিডিও দেখতে Mini App খুলুন।'",
                 "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS loading_text TEXT DEFAULT 'VidUnlock Loading...'",
-                "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS loading_logo TEXT"
+                "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS loading_logo TEXT",
+                "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS tutorial_help_enabled BOOLEAN DEFAULT TRUE",
+                "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS tutorial_help_button_text TEXT DEFAULT '❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন'",
+                "ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS tutorial_help_video_url TEXT"
             ):
                 await conn.execute(ddl)
     await refresh_admin_cache()
@@ -2303,6 +2306,35 @@ async def api_admin_loading_screen(request):
     })
 
 
+async def api_admin_tutorial_help(request):
+    require_admin(request, "can_manage_settings")
+    d = await json_body(request)
+    enabled = bool(d.get("tutorial_help_enabled", True))
+    button_text = str(d.get("tutorial_help_button_text") or "❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন").strip()[:120]
+    video_url = str(d.get("tutorial_help_video_url") or "").strip()[:1000]
+
+    if video_url and not video_url.startswith(("https://", "http://", "tg://")):
+        raise web.HTTPBadRequest(text="Tutorial video link must start with https://, http:// or tg://")
+
+    await db_execute("INSERT INTO app_settings(id) VALUES('main') ON CONFLICT (id) DO NOTHING")
+    await db_execute(
+        """UPDATE app_settings
+           SET tutorial_help_enabled=%s,
+               tutorial_help_button_text=%s,
+               tutorial_help_video_url=%s,
+               updated_at=CURRENT_TIMESTAMP
+           WHERE id='main'""",
+        (enabled, button_text, video_url or None),
+    )
+    saved = await get_settings()
+    return web.json_response({
+        "ok": True,
+        "tutorial_help_enabled": bool(saved.get("tutorial_help_enabled", True)),
+        "tutorial_help_button_text": saved.get("tutorial_help_button_text") or "❓ ভিডিও দেখতে না পারলে কীভাবে ভিডিও দেখবেন",
+        "tutorial_help_video_url": saved.get("tutorial_help_video_url") or ""
+    })
+
+
 async def api_admin_settings_save(request):
     require_admin(request, "can_manage_settings")
     d = await json_body(request)
@@ -2326,7 +2358,8 @@ async def api_admin_settings_save(request):
         "welcome_start_button_text", "welcome_start_button_url", "welcome_start_button_enabled",
         "welcome_rejoin_button_text", "welcome_rejoin_button_url", "welcome_rejoin_button_enabled",
         "mini_start_button_enabled", "mini_start_button_text", "mini_start_text",
-        "loading_text", "loading_logo"
+        "loading_text", "loading_logo",
+        "tutorial_help_enabled", "tutorial_help_button_text", "tutorial_help_video_url"
     ]
     bool_fields = {"show_online", "protect_content", "maintenance_mode", "tutorial_enabled", "comments_enabled", "reactions_enabled", "favorites_enabled", "profile_stats_enabled", "adsgram_enabled", "monetag_enabled", "welcome_manager_enabled", "join_request_welcome_enabled", "direct_join_welcome_enabled", "leave_inbox_enabled", "auto_approve_join_requests", "welcome_video_button_enabled", "welcome_start_button_enabled", "welcome_rejoin_button_enabled", "mini_start_button_enabled"}
 
@@ -2593,6 +2626,7 @@ async def start_web_server():
     app.router.add_post("/api/admin/viral-links", api_admin_viral_save)
     app.router.add_delete("/api/admin/viral-links/{link_id}", api_admin_viral_delete)
     app.router.add_post("/api/admin/loading-screen", api_admin_loading_screen)
+    app.router.add_post("/api/admin/tutorial-help", api_admin_tutorial_help)
     app.router.add_post("/api/admin/settings", api_admin_settings_save)
     app.router.add_get("/api/admin/managed-chats", api_admin_managed_chats)
     app.router.add_post("/api/admin/managed-chats", api_admin_managed_chats)
